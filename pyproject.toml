@@ -1,0 +1,27 @@
+[project]
+name = "mcp-project"
+version = "0.1.0"
+description = "Add your description here"
+readme = "README.md"
+authors = [
+    { name = "Ambika", email = "ambikagupta8899@gmail.com" }
+]
+requires-python = ">=3.14"
+dependencies = [
+    "bcrypt>=5.0.0",
+    "fastapi>=0.143.2",
+    "httpx>=0.28.1",
+    "langchain-core>=1.6.11",
+    "langchain-openai>=1.7.2",
+    "mcp>=2.3.0",
+    "pydantic>=2.14.1",
+    "python-dotenv>=1.2.4",
+    "uvicorn>=0.54.0",
+]
+
+[project.scripts]
+mcp-project = "mcp_project:main"
+
+[build-system]
+requires = ["uv_build>=0.12.18,<0.13.0"]
+build-backend = "uv_build"
