@@ -1,0 +1,468 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Learner's Support Chat</title>
+<style>
+  * { box-sizing: border-box; }
+  /* brand greens: #5e9a1c (buttons, user bubbles, headings), #8bc53f (on dark sidebar) */
+  body { margin: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+         background: #f4f6fb; color: #1f2937; height: 100vh; }
+  button { cursor: pointer; font: inherit; }
+  .hidden { display: none !important; }
+
+  /* ---------- Login ---------- */
+  #login { display: flex; align-items: center; justify-content: center; height: 100vh; }
+  .card { background: #fff; border-radius: 14px; padding: 32px; width: 420px;
+          box-shadow: 0 10px 30px rgba(0,0,0,.08); }
+  .card h1 { margin: 0 0 4px; color: #5e9a1c; }
+  .card p.sub { margin: 0 0 20px; color: #6b7280; }
+  .card input { width: 100%; padding: 10px 12px; margin-bottom: 10px; border: 1px solid #d1d5db;
+                border-radius: 8px; font: inherit; }
+  .btn { background: #5e9a1c; color: #fff; border: 0; border-radius: 8px; padding: 10px 14px; }
+  .btn:disabled { opacity: .5; }
+  .card .btn { width: 100%; }
+  .demo { margin-top: 18px; font-size: 13px; color: #6b7280; }
+  .demo button { margin: 4px 4px 0 0; border: 1px solid #d1d5db; background: #fff; border-radius: 6px;
+                 padding: 4px 8px; font-size: 12px; }
+  .error { color: #dc2626; font-size: 13px; min-height: 18px; }
+
+  /* ---------- App layout ---------- */
+  #app { display: flex; height: 100vh; }
+  aside { width: 300px; background: #111827; color: #e5e7eb; padding: 18px; overflow-y: auto; }
+  aside h2 { color: #8bc53f; margin: 0 0 14px; font-size: 18px; }
+  aside h3 { font-size: 12px; text-transform: uppercase; letter-spacing: .05em; color: #9ca3af; margin: 20px 0 8px; }
+  .badge { display: inline-block; padding: 2px 8px; border-radius: 99px; font-size: 11px; font-weight: 600;
+           text-transform: uppercase; }
+  .badge.learner { background: #2563eb; } .badge.support { background: #059669; } .badge.admin { background: #dc2626; }
+  .tool { font-family: ui-monospace, monospace; font-size: 12px; padding: 3px 0; color: #d1d5db; }
+  .tool span { color: #6b7280; }
+  .scope { display: inline-block; font-family: ui-monospace, monospace; font-size: 11px; color: #d9f0bf;
+           background: #1f2937; border: 1px solid #3f6212; border-radius: 4px; padding: 1px 6px; margin: 0 4px 4px 0; }
+  .chip { background: #1f2937; color: #e5e7eb; border: 1px solid #374151; border-radius: 6px;
+          padding: 4px 8px; font-size: 12px; margin: 0 4px 4px 0; }
+  aside .small { font-size: 12px; color: #d1d5db; white-space: pre-wrap; margin-top: 8px;
+                 background: #1f2937; padding: 8px; border-radius: 6px; }
+  .logout { background: none; border: 1px solid #4b5563; color: #e5e7eb; border-radius: 6px;
+            padding: 4px 10px; font-size: 12px; margin-top: 8px; }
+
+  main { flex: 1; display: flex; flex-direction: column; }
+  #messages { flex: 1; overflow-y: auto; padding: 24px; }
+  .msg { max-width: 760px; margin: 0 auto 16px; }
+  .bubble { padding: 12px 16px; border-radius: 12px; line-height: 1.5; white-space: pre-wrap; }
+  .user .bubble { background: #5e9a1c; color: #fff; margin-left: auto; width: fit-content; max-width: 80%; }
+  .assistant .bubble { background: #fff; box-shadow: 0 1px 3px rgba(0,0,0,.06); }
+  details.trace { font-size: 12px; margin-bottom: 6px; background: #f3f9eb; border: 1px solid #cfe6b0;
+                  border-radius: 8px; padding: 6px 10px; }
+  details.trace.err { background: #fef2f2; border-color: #fecaca; }
+  details.trace summary { cursor: pointer; font-family: ui-monospace, monospace; }
+  details.trace pre { white-space: pre-wrap; max-height: 240px; overflow: auto; margin: 6px 0 0; }
+  .suggest { max-width: 760px; margin: 0 auto; }
+  .suggest button { border: 1px solid #d1d5db; background: #fff; border-radius: 99px; padding: 6px 12px;
+                    margin: 0 6px 6px 0; font-size: 13px; }
+  form#chat { display: flex; gap: 8px; padding: 16px 24px; background: #fff; border-top: 1px solid #e5e7eb; }
+  form#chat input { flex: 1; padding: 12px; border: 1px solid #d1d5db; border-radius: 8px; font: inherit; }
+
+  /* ---------- Manage users (admin) ---------- */
+  .overlay { position: fixed; inset: 0; background: rgba(17,24,39,.55); display: flex; align-items: flex-start;
+             justify-content: center; padding: 40px 16px; overflow-y: auto; z-index: 10; }
+  .modal { background: #fff; border-radius: 14px; padding: 24px; width: 860px; max-width: 100%;
+           box-shadow: 0 10px 30px rgba(0,0,0,.2); }
+  .modal-head { display: flex; align-items: center; gap: 8px; margin-bottom: 12px; }
+  .modal-head h2 { margin: 0; flex: 1; color: #5e9a1c; font-size: 20px; }
+  .btn.light { background: #fff; color: #1f2937; border: 1px solid #d1d5db; }
+  table.users { width: 100%; border-collapse: collapse; font-size: 14px; }
+  table.users th { text-align: left; font-size: 12px; color: #6b7280; font-weight: 600; padding: 6px 8px;
+                   border-bottom: 1px solid #e5e7eb; }
+  table.users td { padding: 8px; border-bottom: 1px solid #f3f4f6; }
+  table.users .badge { color: #fff; }
+  .muted { color: #6b7280; font-size: 12px; }
+  form#userForm { margin-top: 18px; padding-top: 16px; border-top: 1px solid #e5e7eb; }
+  form#userForm h3 { margin: 0 0 12px; font-size: 16px; }
+  .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+  .grid2 label { font-size: 12px; color: #6b7280; display: flex; flex-direction: column; gap: 4px; }
+  .grid2 input, .grid2 select { padding: 8px 10px; border: 1px solid #d1d5db; border-radius: 8px; font: inherit;
+                                color: #1f2937; }
+  .scope-boxes { display: grid; grid-template-columns: repeat(3, 1fr); gap: 4px 12px; margin: 8px 0 14px;
+                 font-family: ui-monospace, monospace; font-size: 12px; }
+  .scope-boxes label { display: flex; gap: 6px; align-items: center; }
+  .form-actions { display: flex; gap: 8px; align-items: center; }
+  .ok { color: #15803d; font-size: 13px; min-height: 18px; }
+
+  /* ---------- Buy a course (learner) ---------- */
+  .course-row { display: flex; align-items: center; gap: 8px; padding: 6px 0; border-bottom: 1px solid #1f2937;
+                font-size: 13px; }
+  .course-row .title { flex: 1; }
+  .course-row .price { color: #9ca3af; font-size: 12px; }
+  .course-row .chip { margin: 0; white-space: nowrap; }
+  .course-row .chip.confirm { background: #5e9a1c; border-color: #5e9a1c; color: #fff; }
+  .course-row .owned { color: #8bc53f; font-size: 12px; white-space: nowrap; }
+</style>
+</head>
+<body>
+
+<!-- ======================= LOGIN ======================= -->
+<div id="login">
+  <div class="card">
+    <h1>SupportConnect</h1>
+    <p class="sub">AI support assistant &middot; MCP demo</p>
+    <form id="loginForm">
+      <input id="email" type="email" placeholder="Email" required>
+      <input id="password" type="password" placeholder="Password" value="password123" required>
+      <div class="error" id="loginError"></div>
+      <button class="btn" type="submit">Log in</button>
+    </form>
+    <div class="demo">
+      Demo accounts (password: password123):<br>
+      <button data-email="rahul@learner.com">Rahul (learner)</button>
+      <button data-email="priya@learner.com">Priya (learner)</button>
+      <button data-email="aman@learner.com">Aman (learner)</button>
+      <button data-email="neha@telusko.com">Neha (support)</button>
+      <button data-email="vikram@telusko.com">Vikram (support)</button>
+      <button data-email="akshay@telusko.com">Akshay (admin)</button>
+    </div>
+  </div>
+</div>
+
+<!-- ======================= CHAT APP ======================= -->
+<div id="app" class="hidden">
+  <aside>
+    <h2>SupportConnect</h2>
+    <div id="who"></div>
+    <button class="logout" id="logout">Log out</button>
+
+    <h3>Your permissions (JWT scopes)</h3>
+    <div id="scopes"></div>
+    <button class="chip hidden" id="manageUsersBtn">&#128101; Manage users</button>
+
+    <div id="buySection" class="hidden">
+      <h3>Buy a course</h3>
+      <div id="buyList"></div>
+      <div id="buyOut" class="small hidden"></div>
+    </div>
+
+    <h3>MCP tools you can use</h3>
+    <div id="tools"></div>
+
+  </aside>
+
+  <main>
+    <div id="messages"></div>
+    <div class="suggest" id="suggestions"></div>
+    <form id="chat">
+      <input id="input" placeholder="Ask about courses, payments, certificates, tickets..." autocomplete="off">
+      <button class="btn" id="send" type="submit">Send</button>
+    </form>
+  </main>
+</div>
+
+<!-- ======================= MANAGE USERS (needs users:manage) ======================= -->
+<div id="usersModal" class="overlay hidden">
+  <div class="modal">
+    <div class="modal-head">
+      <h2>Manage users</h2>
+      <button class="btn" id="addUserBtn">+ Add user</button>
+      <button class="btn light" id="closeUsersBtn">Close</button>
+    </div>
+    <div class="ok" id="usersOk"></div>
+    <div class="error" id="usersError"></div>
+    <table class="users">
+      <thead><tr><th>Name</th><th>Email</th><th>Role</th><th>Permissions</th><th></th></tr></thead>
+      <tbody id="usersBody"></tbody>
+    </table>
+
+    <form id="userForm" class="hidden">
+      <h3 id="userFormTitle">Add user</h3>
+      <div class="grid2">
+        <label>Name <input id="uName" required></label>
+        <label>Email <input id="uEmail" type="email" required></label>
+        <label>Password <input id="uPassword" type="password" minlength="8" autocomplete="new-password"></label>
+        <label>Role
+          <select id="uRole"><option>learner</option><option>support</option><option>admin</option></select>
+        </label>
+      </div>
+      <h3 style="margin-top:16px">Permissions</h3>
+      <label><input type="checkbox" id="uDefaults"> Use the role's default permissions</label>
+      <div class="scope-boxes" id="uScopes"></div>
+      <div class="muted" id="uSelfNote"></div>
+      <div class="error" id="userFormError"></div>
+      <div class="form-actions">
+        <button class="btn" type="submit">Save</button>
+        <button class="btn light" type="button" id="cancelUserBtn">Cancel</button>
+        <span class="muted">Changes apply the next time the user logs in.</span>
+      </div>
+    </form>
+  </div>
+</div>
+
+<script>
+// ---------------------------------------------------------------------------
+// State: JWT + user live in localStorage; chat history lives in memory.
+// ---------------------------------------------------------------------------
+let token = localStorage.getItem("token");
+let history = [];   // [{role: "user"|"assistant", content: "..."}]
+let me = null;      // the logged-in user (from /api/me)
+
+const $ = (id) => document.getElementById(id);
+
+const SUGGESTIONS = {
+  learner: ["What courses am I enrolled in?", "Buy the Agentic AI course", "Why is my certificate not issued?",
+            "My payment failed, what happened?", "Show my tickets"],
+  support: ["Show open tickets", "Give me details of priya@learner.com",
+            "Extend Priya's Spring Boot access by 30 days", "Extend Priya's Spring Boot access by 60 days",
+            "Assign ticket 3 to me"],
+  admin:   ["Show support stats", "Extend Priya's Spring Boot access by 90 days", "Issue Rahul's Java certificate",
+            "Make vikram@telusko.com an admin"],
+};
+
+// Small fetch wrapper that sends the JWT and logs out on 401
+async function api(path, options = {}) {
+  const res = await fetch(path, {
+    ...options,
+    headers: { "Content-Type": "application/json",
+               ...(token ? { Authorization: "Bearer " + token } : {}) },
+  });
+  if (res.status === 401 && token) { logout(); throw new Error("Session expired, please log in again"); }
+  const data = await res.json();
+  if (!res.ok) throw new Error(data.detail || "Request failed");
+  return data;
+}
+
+// ---------------------------------------------------------------------------
+// Login / logout
+// ---------------------------------------------------------------------------
+async function login(email, password) {
+  $("loginError").textContent = "";
+  try {
+    const data = await api("/api/login", { method: "POST", body: JSON.stringify({ email, password }) });
+    token = data.token;
+    localStorage.setItem("token", token);
+    await startApp();
+  } catch (e) { $("loginError").textContent = e.message; }
+}
+
+function logout() {
+  token = null; history = [];
+  localStorage.removeItem("token");
+  $("messages").innerHTML = "";
+  $("usersModal").classList.add("hidden");
+  $("app").classList.add("hidden");
+  $("login").classList.remove("hidden");
+}
+
+$("loginForm").onsubmit = (e) => { e.preventDefault(); login($("email").value, $("password").value); };
+document.querySelectorAll(".demo button").forEach(b =>
+  b.onclick = () => { $("email").value = b.dataset.email; login(b.dataset.email, "password123"); });
+$("logout").onclick = logout;
+
+// ---------------------------------------------------------------------------
+// After login: show user, the MCP tools this role can see, suggestions
+// ---------------------------------------------------------------------------
+async function startApp() {
+  const { user, scopes, tools } = await api("/api/me");
+  me = user;
+  $("manageUsersBtn").classList.toggle("hidden", !scopes.includes("users:manage"));
+  $("buySection").classList.toggle("hidden", !scopes.includes("courses:purchase"));
+  $("buyOut").classList.add("hidden");
+  if (scopes.includes("courses:purchase")) loadBuyList();
+  $("login").classList.add("hidden");
+  $("app").classList.remove("hidden");
+
+  $("who").innerHTML = `<div>${user.name}</div><div style="font-size:12px;color:#9ca3af">${user.email}</div>
+                        <span class="badge ${user.role}">${user.role}</span>`;
+  $("scopes").innerHTML = scopes.map(s => `<span class="scope">${s}</span>`).join("");
+  $("tools").innerHTML = tools.map(t =>
+    `<div class="tool" title="${escapeHtml(t.description || "")}">&#9656; ${t.name}</div>`).join("") +
+    `<div class="tool"><span>${tools.length} tools visible</span></div>`;
+
+  $("suggestions").innerHTML = SUGGESTIONS[user.role].map(s =>
+    `<button onclick="send(${escapeHtml(JSON.stringify(s))})">${s}</button>`).join("");
+
+  addMessage("assistant", `Hi ${user.name.split(" ")[0]}! I'm the Telusko Support Assistant. How can I help you today?`);
+}
+
+// ---------------------------------------------------------------------------
+// Chat
+// ---------------------------------------------------------------------------
+function escapeHtml(s) {
+  return s.replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+}
+
+// Tiny markdown: **bold** and `code`
+function formatText(s) {
+  return escapeHtml(s).replace(/\*\*(.+?)\*\*/g, "<b>$1</b>").replace(/`([^`]+)`/g, "<code>$1</code>");
+}
+
+function addMessage(role, text, toolCalls = []) {
+  const div = document.createElement("div");
+  div.className = "msg " + role;
+  // Show every MCP tool call the assistant made (great for explaining MCP live!)
+  div.innerHTML = toolCalls.map(tc => `
+    <details class="trace ${tc.is_error ? "err" : ""}">
+      <summary>${tc.is_error ? "&#10060;" : "&#128295;"} ${tc.name}(${escapeHtml(JSON.stringify(tc.arguments))})</summary>
+      <pre>${escapeHtml(tc.result)}</pre>
+    </details>`).join("") + `<div class="bubble">${formatText(text)}</div>`;
+  $("messages").appendChild(div);
+  $("messages").scrollTop = $("messages").scrollHeight;
+  return div;
+}
+
+async function send(text) {
+  text = text.trim();
+  if (!text) return;
+  $("input").value = "";
+  addMessage("user", text);
+  history.push({ role: "user", content: text });
+
+  const thinking = addMessage("assistant", "Thinking...");
+  $("send").disabled = true;
+  try {
+    const data = await api("/api/chat", { method: "POST", body: JSON.stringify({ messages: history }) });
+    thinking.remove();
+    addMessage("assistant", data.reply, data.tool_calls);
+    history.push({ role: "assistant", content: data.reply });
+  } catch (e) {
+    thinking.remove();
+    addMessage("assistant", "Error: " + e.message);
+  } finally {
+    $("send").disabled = false;
+  }
+}
+
+$("chat").onsubmit = (e) => { e.preventDefault(); send($("input").value); };
+
+// ---------------------------------------------------------------------------
+// Manage users (admin): list, add, edit users and their permissions.
+// Every save goes backend -> MCP tool (create_user / update_user), so the
+// MCP server checks the 'users:manage' scope.
+// ---------------------------------------------------------------------------
+let usersData = null;   // { users, all_scopes, role_defaults } from GET /api/users
+let editingUser = null; // null = adding a new user
+
+async function loadUsers() {
+  $("usersError").textContent = "";
+  try { usersData = await api("/api/users"); }
+  catch (e) { $("usersError").textContent = e.message; return; }
+  $("usersBody").innerHTML = usersData.users.map(u => `
+    <tr>
+      <td>${escapeHtml(u.name)}${u.id === me.id ? ' <span class="muted">(you)</span>' : ""}</td>
+      <td>${escapeHtml(u.email)}</td>
+      <td><span class="badge ${u.role}">${u.role}</span></td>
+      <td>${u.custom_scopes ? "<b>Custom</b>" : "Role defaults"} <span class="muted">(${u.scopes.length})</span></td>
+      <td><button class="btn light" onclick="openUserForm(${u.id})">Edit</button></td>
+    </tr>`).join("");
+}
+
+// Draw one checkbox per scope; checked = the given list
+function renderScopeBoxes(checked) {
+  $("uScopes").innerHTML = usersData.all_scopes.map(sc => `
+    <label><input type="checkbox" value="${sc}" ${checked.includes(sc) ? "checked" : ""}> ${sc}</label>`).join("");
+  syncScopeBoxes();
+}
+
+// With "role defaults" ticked the boxes just show the defaults and can't be edited
+function syncScopeBoxes() {
+  const self = editingUser && editingUser.id === me.id;
+  $("uDefaults").disabled = self;
+  $("uScopes").querySelectorAll("input").forEach(b => b.disabled = self || $("uDefaults").checked);
+}
+
+function openUserForm(userId = null) {
+  editingUser = userId === null ? null : usersData.users.find(u => u.id === userId);
+  const u = editingUser;
+  const self = u && u.id === me.id;
+  $("userFormTitle").textContent = u ? `Edit ${u.name}` : "Add user";
+  $("uName").value = u ? u.name : "";
+  $("uEmail").value = u ? u.email : "";
+  $("uPassword").value = "";
+  $("uPassword").required = !u;
+  $("uPassword").placeholder = u ? "Leave blank to keep current password" : "At least 8 characters";
+  $("uRole").value = u ? u.role : "learner";
+  $("uRole").disabled = self;
+  $("uDefaults").checked = !u || !u.custom_scopes;
+  $("uSelfNote").textContent = self ? "You can't change your own role or permissions." : "";
+  $("userFormError").textContent = "";
+  renderScopeBoxes(u ? u.scopes : usersData.role_defaults[$("uRole").value]);
+  $("userForm").classList.remove("hidden");
+  $("uName").focus();
+}
+
+// Changing the role (or re-ticking "defaults") shows that role's default permissions
+$("uRole").onchange = () => { if ($("uDefaults").checked) renderScopeBoxes(usersData.role_defaults[$("uRole").value]); };
+$("uDefaults").onchange = () => {
+  if ($("uDefaults").checked) renderScopeBoxes(usersData.role_defaults[$("uRole").value]);
+  else syncScopeBoxes();
+};
+
+$("userForm").onsubmit = async (e) => {
+  e.preventDefault();
+  const self = editingUser && editingUser.id === me.id;
+  const body = { name: $("uName").value, email: $("uEmail").value, password: $("uPassword").value || null };
+  if (!self) {
+    body.role = $("uRole").value;
+    const checked = [...$("uScopes").querySelectorAll("input:checked")].map(b => b.value);
+    if ($("uDefaults").checked) { if (editingUser) body.use_role_defaults = true; }
+    else body.scopes = checked;
+  }
+  $("userFormError").textContent = "";
+  try {
+    const data = editingUser
+      ? await api(`/api/users/${editingUser.id}`, { method: "PUT", body: JSON.stringify(body) })
+      : await api("/api/users", { method: "POST", body: JSON.stringify(body) });
+    $("userForm").classList.add("hidden");
+    $("usersOk").textContent = data.message;
+    await loadUsers();
+  } catch (err) { $("userFormError").textContent = err.message; }
+};
+
+$("manageUsersBtn").onclick = () => {
+  $("usersOk").textContent = "";
+  $("userForm").classList.add("hidden");
+  $("usersModal").classList.remove("hidden");
+  loadUsers();
+};
+$("closeUsersBtn").onclick = () => $("usersModal").classList.add("hidden");
+$("cancelUserBtn").onclick = () => $("userForm").classList.add("hidden");
+$("addUserBtn").onclick = () => { $("usersOk").textContent = ""; if (usersData) openUserForm(); };
+
+// ---------------------------------------------------------------------------
+// Buy a course (learner). First click on Buy asks to confirm the price, the second click buys.
+// The purchase runs as the MCP tool purchase_course (simulated payment).
+// ---------------------------------------------------------------------------
+async function loadBuyList() {
+  try {
+    const { courses } = await api("/api/courses");
+    $("buyList").innerHTML = courses.map(c => `
+      <div class="course-row">
+        <span class="title">${escapeHtml(c.title)}<br><span class="price">Rs ${c.price_inr} &middot; ${c.access_days} days</span></span>
+        ${c.access_valid_till
+          ? `<span class="owned" title="Access until ${c.access_valid_till}">&#10003; Enrolled</span>`
+          : `<button class="chip" data-price="${c.price_inr}" data-title="${escapeHtml(c.title)}" onclick="buyCourse(this, ${c.id})">Buy</button>`}
+      </div>`).join("");
+  } catch (e) { $("buyList").textContent = e.message; }
+}
+
+async function buyCourse(btn, courseId) {
+  if (!btn.classList.contains("confirm")) {    // first click: ask to confirm
+    btn.classList.add("confirm");
+    btn.textContent = `Pay Rs ${btn.dataset.price}?`;
+    return;
+  }
+  btn.disabled = true;
+  btn.textContent = "Paying...";
+  const out = $("buyOut");
+  out.classList.remove("hidden");
+  try {
+    const r = await api(`/api/courses/${courseId}/purchase`,
+                       { method: "POST", body: JSON.stringify({ course_title: btn.dataset.title }) });
+    out.textContent = `${r.message}\nPaid Rs ${r.amount_inr} (ref ${r.payment_reference})\nAccess until ${r.access_valid_till}`;
+  } catch (e) { out.textContent = e.message; }
+  loadBuyList();
+}
+
+// Auto-login if we still have a token
+if (token) startApp().catch(logout);
+</script>
+</body>
+</html>
