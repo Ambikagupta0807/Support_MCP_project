@@ -629,4 +629,7 @@ def update_user(user_id: int, name: str | None = None, email: str | None = None,
 
 
 if __name__ == "__main__":
-    mcp.run("streamable-http", host="127.0.0.1", port=MCP_PORT)
+    import os
+
+    port = int(os.environ.get("PORT", MCP_PORT))
+    mcp.run("streamable-http", host="0.0.0.0", port=port)
