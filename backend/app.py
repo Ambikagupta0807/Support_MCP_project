@@ -16,7 +16,7 @@ The browser NEVER talks to the MCP server directly.
 import json
 from contextlib import asynccontextmanager
 
-import httpx2
+import httpx
 from fastapi import Depends, FastAPI, Header, HTTPException
 from fastapi.responses import FileResponse
 from langchain_core.messages import AIMessage, HumanMessage, SystemMessage, ToolMessage
@@ -77,7 +77,7 @@ def get_current_user(authorization: str = Header(default="")) -> dict:
 @asynccontextmanager 
 async def mcp_client(token: str):
     """Connect to the MCP server, forwarding the user's JWT as a Bearer token."""
-    http = httpx2.AsyncClient(headers={"Authorization": f"Bearer {token}"}, timeout=60)
+    http = httpx.AsyncClient(headers={"Authorization": f"Bearer {token}"}, timeout=60)
     async with http, Client(streamable_http_client(MCP_SERVER_URL, http_client=http)) as client:
         yield client
 
